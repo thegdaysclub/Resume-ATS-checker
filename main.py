@@ -8,6 +8,7 @@ import json
 import re
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+import matplotlib.pyplot as plt
 
 load_dotenv()
 
@@ -123,7 +124,7 @@ st.set_page_config(page_title="Smart ATS for Resumes", layout="wide")
 st.markdown("""
     <style>
         .main {
-            #background-color: #020304;
+            background-color: #020304;
             padding: 2rem;
         }
         .sidebar .sidebar-content {
@@ -161,7 +162,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-
 # Sidebar
 with st.sidebar:
     st.title("Smart ATS for Resumes")
@@ -181,7 +181,6 @@ with st.sidebar:
 st.sidebar.header("Ollama Settings")
 custom_url = st.sidebar.text_input("Ollama API URL", value="http://localhost:11434/api/generate")
 custom_model = st.sidebar.text_input("Ollama Model", value="llama2")
-
 
 # Main Content
 st.markdown("<div class='main'>", unsafe_allow_html=True)
@@ -259,6 +258,24 @@ if submit:
                         st.write("Missing Skills:", ", ".join(set(jd_skills) - set(resume_skills)))
                         st.write("AI Analysis:")
                         st.json(response_json)
+                        
+                        # Graphical Results
+                        st.subheader("Graphical Results")
+                        
+                        # Bar chart for JD Match
+                        st.write("Job Description Match Percentage")
+                        st.bar_chart([final_score])
+                        
+                        # Pie chart for skills found vs. missing skills
+                        st.write("Skills Analysis")
+                        skills_data = {
+                            'Skills Found': len(resume_skills),
+                            'Missing Skills': len(set(jd_skills) - set(resume_skills))
+                        }
+                        fig, ax = plt.subplots()
+                        ax.pie(skills_data.values(), labels=skills_data.keys(), autopct='%1.1f%%', startangle=90)
+                        ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+                        st.pyplot(fig)
                     
                     except json.JSONDecodeError as e:
                         st.markdown("<div class='error'>", unsafe_allow_html=True)
