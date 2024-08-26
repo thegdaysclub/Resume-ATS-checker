@@ -166,7 +166,7 @@ st.markdown("""
 with st.sidebar:
     st.title("Smart ATS for Resumes")
     st.subheader("About")
-    st.write("This sophisticated ATS project uses advanced NLP techniques and LLMs to provide comprehensive resume analysis.")
+    st.write("This sophisticated ATS project uses Local LLMs (with ollama) and streamlit to provide comprehensive resume analysis.")
     
     st.markdown("""
     - [Streamlit](https://streamlit.io/)
