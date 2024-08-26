@@ -8,7 +8,6 @@ import json
 import re
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-import matplotlib.pyplot as plt
 
 load_dotenv()
 
@@ -83,11 +82,11 @@ def clean_ollama_response(response):
             json_obj = json.loads(json_like)
             return json.dumps(json_obj, indent=4)  # Pretty-print for easier reading
         except json.JSONDecodeError as e:
-            print(f"JSONDecodeError: {e}")
+            st.error(f"JSONDecodeError: {e}")
             return None
 
     except Exception as e:
-        print(f"Error in cleaning response: {e}")
+        st.error(f"Error in cleaning response: {e}")
         return None
 
 
@@ -124,7 +123,7 @@ st.set_page_config(page_title="Smart ATS for Resumes", layout="wide")
 st.markdown("""
     <style>
         .main {
-            background-color: #020304;
+            #background-color: #020304;
             padding: 2rem;
         }
         .sidebar .sidebar-content {
@@ -162,6 +161,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+
 # Sidebar
 with st.sidebar:
     st.title("Smart ATS for Resumes")
@@ -182,6 +182,7 @@ st.sidebar.header("Ollama Settings")
 custom_url = st.sidebar.text_input("Ollama API URL", value="http://localhost:11434/api/generate")
 custom_model = st.sidebar.text_input("Ollama Model", value="llama2")
 
+
 # Main Content
 st.markdown("<div class='main'>", unsafe_allow_html=True)
 
@@ -193,26 +194,20 @@ uploaded_file = st.file_uploader("Upload Your Resume", type="pdf", help="Please 
 
 submit = st.button("Submit", key="submit_button", use_container_width=True)
 
+# In the Streamlit app, handle the cleaned response
 if submit:
     if uploaded_file is not None and jd.strip():
         with st.spinner("Analyzing your resume..."):
             resume_text = input_pdf_text(uploaded_file)
             if "Error:" not in resume_text:
-                # Preprocess texts
                 processed_resume = preprocess_text(resume_text)
                 processed_jd = preprocess_text(jd)
                 
-                # Calculate initial similarity score
                 initial_similarity = calculate_similarity(processed_resume, processed_jd)
-                
-                # Extract skills
                 resume_skills = extract_skills(processed_resume)
                 jd_skills = extract_skills(processed_jd)
                 
-                # Prepare prompt with preprocessed text
                 prompt = input_prompt.format(text=processed_resume, jd=processed_jd)
-                
-                # Get AI analysis
                 response = get_ollama_response(prompt, custom_url, custom_model)
                                 
                 st.markdown("<div class='result'>", unsafe_allow_html=True)
@@ -220,73 +215,29 @@ if submit:
                 st.text(response)  # Display the raw response for debugging
                 cleaned_response = clean_ollama_response(response)
                 
-                # Inject custom CSS for background color
-                st.markdown(
-                    """
-                    <style>
-                    .stApp {
-                        background-color: #282a36;
-                        color: #f8f8f2;
-                    }
-                    </style>
-                    """,
-                    unsafe_allow_html=True
-                )
-                
                 if cleaned_response:
                     try:
                         response_json = json.loads(cleaned_response)
-                    
-                        # Combine AI analysis with our calculations
-                        if 'JD Match' in response_json:
-                            jd_match_value = response_json.get('JD Match')
-                            try:
-                                if isinstance(jd_match_value, int):
-                                    ai_score = float(jd_match_value)
-                                else:
-                                    ai_score = float(jd_match_value.strip('%'))
-                            except ValueError:
-                                ai_score = 0.0  # Default value if conversion fails
-                
-                            final_score = (ai_score + (initial_similarity * 100)) / 2
-                        else:
-                            final_score = initial_similarity * 100
-                
+                        final_score = (float(response_json.get('JD Match', 0).strip('%')) + (initial_similarity * 100)) / 2
+                        
                         st.subheader("Analysis Results")
                         st.write(f"JD Match: {final_score:.2f}%")
                         st.write("Skills Found:", ", ".join(resume_skills))
                         st.write("Missing Skills:", ", ".join(set(jd_skills) - set(resume_skills)))
                         st.write("AI Analysis:")
                         st.json(response_json)
-                        
-                        # Graphical Results
-                        st.subheader("Graphical Results")
-                        
-                        # Bar chart for JD Match
-                        st.write("Job Description Match Percentage")
-                        st.bar_chart([final_score])
-                        
-                        # Pie chart for skills found vs. missing skills
-                        st.write("Skills Analysis")
-                        skills_data = {
-                            'Skills Found': len(resume_skills),
-                            'Missing Skills': len(set(jd_skills) - set(resume_skills))
-                        }
-                        fig, ax = plt.subplots()
-                        ax.pie(skills_data.values(), labels=skills_data.keys(), autopct='%1.1f%%', startangle=90)
-                        ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
-                        st.pyplot(fig)
                     
                     except json.JSONDecodeError as e:
-                        st.markdown("<div class='error'>", unsafe_allow_html=True)
-                        st.error(f"Error: Unable to parse the cleaned response from Ollama as JSON. Error: {str(e)}")
+                        st.error(f"Error: Unable to parse the cleaned response as JSON. Error: {str(e)}")
                         st.write("Cleaned response:")
                         st.code(cleaned_response)
                 else:
-                    st.markdown("<div class='error'>", unsafe_allow_html=True)
-                    st.error("Error: Unable to extract JSON-like content from Ollama response")
+                    st.error("Unable to extract JSON-like content from the Ollama response. Please check the API output format.")
+                    st.write("Fallback Analysis:")
+                    st.write(f"Similarity Score: {initial_similarity * 100:.2f}%")
+                    st.write("Skills Found:", ", ".join(resume_skills))
+                    st.write("Missing Skills:", ", ".join(set(jd_skills) - set(resume_skills)))
             else:
-                st.markdown("<div class='error'>", unsafe_allow_html=True)
                 st.error("Please upload a resume and paste the job description.")
                 
         st.markdown("<div class='result'>", unsafe_allow_html=True)
